@@ -44,7 +44,7 @@ def welcome():
         f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
-        f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/prcp<br/>"
         f"/api/v1.0/<start>"
         f"/api/v1.0/<start>/<end>"
 
@@ -54,35 +54,59 @@ def welcome():
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     """ Query for the dates and temperature observations from the last year.
-        Convert the query results to a Dictionary using `date` as the key and `tobs` as the value.
+        Convert the query results to a Dictionary using `date` as the key and `prcp` as the value.
         Return the JSON representation of your dictionary. """
 
     """ Latest Date on record in string format"""
     last_measurement_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
 
     """ Break down the latest date into interget year, month and day components """
-    last_measurement_year = int(last_measurement_date[0:4])
-    last_measurement_month = int(last_measurement_date[5:7])
-    last_measurement_day = int(last_measurement_date[8:11])
+    last_measurement_year   = int(last_measurement_date[0:4])
+    last_measurement_month  = int(last_measurement_date[5:7])
+    last_measurement_day    = int(last_measurement_date[8:11])
 
     """ Get the date 12 months ago from the lasest date on record """   
     last_year = dt.date(last_measurement_year, last_measurement_month, last_measurement_day) - dt.timedelta(days=365)
 
     """" Retrieve the last 12 months of precipitation data. """
-    last_12_months_tobs = session.query(Measurement.date, Measurement.tobs).\
+    last_12_months_prcp = session.query(Measurement.date, Measurement.prcp).\
     filter(Measurement.date >= last_year).filter(and_(Measurement.date) <= last_measurement_date)
 
 
     # Create a dictionary from the row data and append to a list of all_passengers
-    all_tobs = []
-    for tob in last_12_months_tobs:
-        tobs_dict = {}
-        tobs_dict["date"] = tob.date
-        tobs_dict["temperature_observations "] = tob.tobs
-        all_tobs.append(tobs_dict)
+    all_prcps = []
 
-    return jsonify(all_tobs)
+    for prcp in last_12_months_prcp:
+        prcp_dict = {}
 
+        prcp_dict["date"]           = prcp.date
+        prcp_dict["precipitation"]  = prcp.prcp
+        all_prcps.append(prcp_dict)
 
+    return jsonify(all_prcps)
+
+@app.route("/api/v1.0/stations")
+def stations():
+    """ Return a JSON list of stations from the dataset. """
+
+    stations = session.query(Station)
+    
+    """ Create a dictionary from the row data """
+    all_stations = []
+
+    for station in stations:
+        station_dict = {}
+
+        station_dict["id"]          = station.id
+        station_dict["station"]     = station.station
+        station_dict["name"]        = station.name
+        station_dict["latitude"]    = station.latitude
+        station_dict["longitude"]   = station.longitude
+        station_dict["elevation"]   = station.elevation
+        all_stations.append(station_dict)
+
+    return jsonify(all_stations)
+
+""" ------------------------------------------------------------------------------------------ """
 if __name__ == '__main__':
     app.run(debug=True)
