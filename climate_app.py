@@ -44,7 +44,7 @@ def welcome():
         f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
-        f"/api/v1.0/prcp<br/>"
+        f"/api/v1.0/tobs<br/>"
         f"/api/v1.0/<start>"
         f"/api/v1.0/<start>/<end>"
 
@@ -106,6 +106,37 @@ def stations():
         all_stations.append(station_dict)
 
     return jsonify(all_stations)
+
+@app.route("/api/v1.0/tobs")
+def tobs():
+    """ Return a JSON list of Temperature Observations (tobs) for the previous year."""
+
+    """ Latest Date on record in string format"""
+    last_measurement_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+
+    """ Break down the latest date into interget year, month and day components """
+    last_measurement_year   = int(last_measurement_date[0:4])
+    last_measurement_month  = int(last_measurement_date[5:7])
+    last_measurement_day    = int(last_measurement_date[8:11])
+
+    """ Get the date 12 months ago from the lasest date on record """   
+    last_year = dt.date(last_measurement_year, last_measurement_month, last_measurement_day) - dt.timedelta(days=365)
+    
+    """ Query the last 12 months of temperature observation """
+    last_12_months_tobs = session.query(Measurement.date, Measurement.station, Measurement.tobs).\
+                                        filter(Measurement.date >= last_year).\
+                                        filter(and_(Measurement.date) <= last_measurement_date)
+
+ 
+ 
+    """ Save the query results as a Pandas DataFrame and set the index to the date column and drop 
+        rows with missing data """
+    temps_df = pd.DataFrame(last_12_months_tobs[:],columns = ["date", "station", "temperature"]).dropna()
+    
+    """ Convert the dataframe to dict """
+    temps_dict = temps_df.to_dict(orient="records")
+
+    return jsonify(temps_dict)
 
 """ ------------------------------------------------------------------------------------------ """
 if __name__ == '__main__':
